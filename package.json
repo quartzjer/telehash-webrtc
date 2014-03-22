@@ -1,6 +1,6 @@
 {
   "name": "telehash-webrtc",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "WebRTC bindings for telehash for the browser",
   "main": "index.js",
   "browserify":"./browser.js",

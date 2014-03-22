@@ -5,7 +5,11 @@ function init(chan, to) {
   var initiate = false;
   if(!chan)
   {
-    chan = to.start("webrtc", {bare:true, js:{open:true}});
+    chan = to.start("webrtc", {bare:true});
+    // it may be possible for send to recurse back here before sockets[to] is set, hack around it
+    setTimeout(function(){
+      chat.send({type:"webrtc",js:{open:true}});
+    },10);
     initiate = true;
   }
   var pch = new rtc.peer({initiate:true, _self:"self", _peer:to.hashname});
@@ -56,22 +60,21 @@ exports.install = function(self)
 
   var sockets = {};
   self.deliver("webrtc", function(path, msg, to) {
-    if(!sockets[path.id]){
-      path.id = self.randomHEX(16); // we control the path ids
-      sockets[path.id] = init(false,to);
-      sockets[path.id].receive = function(msg){
+    if(!sockets[to.hashname]){
+      sockets[to.hashname] = init(false,to);
+      sockets[to.hashname].receive = function(msg){
         self.receive(msg,path);
       }
     }
-    sockets[path.id].send(msg);
+    sockets[to.hashname].send(msg);
   });
   self.paths.webrtc = true;
   self.rels["webrtc"] = function(err, packet, chan, cb) {
     cb();
     chan.send({js:{open:true}});
-    var path = {type:"webrtc",id:self.randomHEX(16)};
-    sockets[path.id] = init(chan,packet.from);
-    sockets[path.id].receive = function(msg){
+    var path = {type:"webrtc"};
+    sockets[packet.from.hashname] = init(chan,packet.from);
+    sockets[packet.from.hashname].receive = function(msg){
       self.receive(msg,path);
     }
   }
