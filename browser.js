@@ -3,7 +3,7 @@ var rtc = require("webrtc-peer");
 exports.install = function(self)
 {
   if(!rtc.hasWebRTC) return false;
-  self.paths.webrtc = true;
+  self.pathSet({type:"webrtc"});
 
   var conns = {};
   var peers = {};
