@@ -1,9 +1,28 @@
 var rtc = require("webrtc-peer");
 
-exports.install = function(self)
+exports.name = 'webrtc';
+
+exports.mesh = function(mesh, cbExt)
 {
-  if(!rtc.hasWebRTC) return false;
-  self.pathSet({type:"webrtc"});
+  if(!rtc.hasWebRTC) return cbExt();
+
+  var args = mesh.args||{};
+  var telehash = mesh.lib;
+
+  var tp = {pipes:{}};
+
+  // static path
+  tp.paths = function(){
+    return [{type:"webrtc"}];
+  }
+
+  // turn a path into a pipe
+  tp.pipe = function(link, path, cbPipe){
+    if(typeof path != 'object' || path.type != 'webrtc') return false;
+    // TODO
+  }
+
+  return cbExt(tp);
 
   var conns = {};
   var peers = {};
