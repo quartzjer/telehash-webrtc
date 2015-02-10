@@ -9,80 +9,89 @@ exports.mesh = function(mesh, cbExt)
   var args = mesh.args||{};
   var telehash = mesh.lib;
 
-  var tp = {pipes:{}};
+  var tp = {open:{}};
 
   // static path
   tp.paths = function(){
     return [{type:"webrtc"}];
   }
 
-  // turn a path into a pipe
+  // create/init/return the rtc and pipe
+  function rtcPipe(link, initiate)
+  {
+    // existing noop
+    if(link.rtcPipe) return link.rtcPipe;
+
+    // outgoing signal cache and sender
+    var signals = [];
+    function signal(sig){
+      if(signals.indexOf(sig) == -1) signals.push(sig);
+      if(!link.x) return;
+      // send each signal as an individual lossy channel
+      var json = {type:'webrtc',c:link.x.cid()};
+      json.signal = sig;
+      log.debug('sending signal to',link.hashname,json);
+      link.x.send({json:json});
+    }
+
+    // new pipe
+    var pipe = link.rtcPipe = new telehash.Pipe('webrtc');
+    pipe.cloaked = true;
+    pipe.id = link.hashname;
+    pipe.path = {type:'webrtc'};
+    
+    // handle outgoing packets based on rtc state
+    pipe.onSend = function(packet, link, cb){
+      if(!packet) return cb('no packet');
+      var safe = packet.toString('base64')
+      if(link.rtc.connected)
+      {
+        link.rtc.send(safe);
+        return cb();
+      }
+      // cache most recent packet
+      link.rtc.cached = safe;
+      if(!link.up) return cb('not connected');
+      // if there's signals yet, resend them as they could have been lost
+      signals.forEach(signal);
+    }
+
+    // new webrtc connection
+    link.rtc = new rtc.peer({initiate:initiate, _self:'self', _peer:link.hashname});
+    link.rtc.DEBUG = true;
+    link.rtc.onsignal = signal;
+    link.rtc.onconnection = function() {
+      console.log('RTC CONNECTED');
+      link.rtc.connected = true;
+      if(link.rtc.cached) link.rtc.send(chan.cached);
+      link.rtc.cached = false;
+      signals = []; // empty any cached signals too
+    }
+    link.rtc.onmessage = function(safe) {
+      var packet = lob.decloak(new Buffer(safe,'base64'));
+      if(!packet) return mesh.log.info('dropping invalid packet',safe);
+      mesh.receive(packet,pipe);
+    }
+    
+    return pipe;
+  }
+  
+  // turn a path into a pipe (on a link)
   tp.pipe = function(link, path, cbPipe){
     if(typeof path != 'object' || path.type != 'webrtc') return false;
-    // TODO
+    // initiate if needed
+    cbPipe(rtcPipe(link,true));
+  }
+
+  // handle individual incoming webrtc signals
+  tp.open.webrtc = function(args, open, cbOpen){
+    var link = this;
+    // create if needed
+    rtcPipe(link,false);
+    if(open.signal) link.rtc.signal(open.signal);
   }
 
   return cbExt(tp);
 
-  var conns = {};
-  var peers = {};
-
-  function init(initiate,chan,to)
-  {
-    chan.wrap("TS"); // takes over channel callbacks, creates chan.socket
-    peers[to] = chan;
-
-    var pch;
-    chan.socket.onopen = function()
-    {
-      pch = new rtc.peer({initiate:initiate, _self:"self", _peer:to});
-      pch.DEBUG = true;
-      pch.onsignal = function(signal) {
-        console.log("RTC OUT", signal);
-        chan.socket.send(JSON.stringify(signal));
-      }
-      pch.onconnection = function() {
-        console.log("RTC CONNECTED");
-        conns[to] = pch;
-        if(chan.cached) pch.send(chan.cached);
-      }
-      pch.onmessage = function(safe) {
-        self.receive(new Buffer(safe, "base64"),{type:"webrtc"});
-      }
-    }
-    chan.socket.onmessage = function(data) {
-      console.log("RTC IN", data);
-      try {
-        data = JSON.parse(data.data)
-      } catch (E) {
-        return console.log("rtc parse error", E, data.data)
-      }
-      pch.signal(data);
-    }
-  }
-  
-  self.deliver("webrtc", function(path, msg, to) {
-    var safe = msg.toString("base64");
-    // have a conn already
-    if(conns[to.hashname]) return conns[to.hashname].send(safe);
-    // if signalling, just cache the most recent
-    if(peers[to.hashname]) return peers[to.hashname].cached = safe;
-    // start a new signal path
-    var chan = to.start("webrtc", {bare:true});
-    // it may be possible for chan send to immediately recurse back here before peers[to] is set, hack around it
-    setTimeout(function(){ chan.send({type:"webrtc",js:{open:true}}); },10);
-    // initialize signalling
-    init(true,chan,to.hashname);
-  });
-
-  self.rels["webrtc"] = function(err, packet, chan, cb) {
-    cb();
-    if(err) return;
-    var from = packet.from.hashname;
-    // detect simultaneous and prefer the highest
-    if(peers[from] && chan.id < peers[from].id) return chan.fail("duplicate");
-    chan.send({js:{open:true}});
-    init(false,chan,from);
-  }
 }
 

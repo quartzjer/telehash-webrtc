@@ -11,6 +11,9 @@
   "browser": {
     "wrtc": false
   },
+  "scripts": {
+      "test": "browserify test/test.js -o test/bundle.js && echo \"file://`pwd`/test/test.html\""
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/quartzjer/telehash-webrtc.git"
