@@ -1,11 +1,15 @@
 {
   "name": "telehash-webrtc",
   "version": "0.0.4",
-  "description": "WebRTC bindings for telehash for the browser",
+  "description": "WebRTC bindings for telehash",
   "main": "index.js",
-  "browserify":"./browser.js",
+  "browserify": "./browser.js",
   "dependencies": {
-    "webrtc-peer":"0.0.x"
+    "webrtc-peer": "0.0.x",
+    "wrtc": "0.0.46"
+  },
+  "browser": {
+    "wrtc": false
   },
   "repository": {
     "type": "git",
