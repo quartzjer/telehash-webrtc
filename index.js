@@ -1,4 +1,8 @@
-var wrtc = require('wrtc');
+try{
+  var wrtc = require('wrtc');
+}catch(E){
+  
+}
 
 exports.name = 'webrtc';
 
