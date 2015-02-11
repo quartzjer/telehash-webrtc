@@ -1,6 +1,6 @@
 {
   "name": "telehash-webrtc",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "WebRTC bindings for telehash",
   "main": "index.js",
   "browserify": "./browser.js",
@@ -11,8 +11,11 @@
   "browser": {
     "wrtc": false
   },
+  "devDependencies": {
+    "telehash": "*"
+  },
   "scripts": {
-      "test": "browserify test/test.js -o test/bundle.js && echo \"file://`pwd`/test/test.html\""
+      "test": "browserify test/test.js -o test/bundle.js && node test/server.js"
   },
   "repository": {
     "type": "git",
