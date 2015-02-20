@@ -8,6 +8,6 @@ exports.name = 'webrtc';
 
 exports.mesh = function(mesh, cbExt)
 {
-  console.log("not supported for node yet");
+//  console.log("not supported for node yet");
   cbExt();
 }
